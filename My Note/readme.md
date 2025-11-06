@@ -168,3 +168,99 @@
 
 ---
 
+Perfect 🔥 — here’s a **minimal ASCII diagram** that shows how **Kubernetes** works internally — from **Control Plane → Worker Nodes → Pods → Containers** — with a short, clear explanation below.
+
+---
+
+## 🧩 **Kubernetes System Architecture (ASCII Representation)**
+
+```
+                 ┌──────────────────────────────────────┐
+                 │          CONTROL PLANE               │
+                 │  (Brain / Management Layer)          │
+                 │--------------------------------------│
+                 │                                      │
+                 │  ┌──────────────────────────────┐    │
+                 │  │  API Server (kube-apiserver) │◄───┤  ← (kubectl / CI/CD tools)
+                 │  └──────────────────────────────┘    │
+                 │  ┌──────────────────────────────┐    │
+                 │  │  Scheduler                   │    │  ← decides which node runs a Pod
+                 │  └──────────────────────────────┘    │
+                 │  ┌──────────────────────────────┐    │
+                 │  │  Controller Manager          │    │  ← monitors replicas, auto-healing
+                 │  └──────────────────────────────┘    │
+                 │  ┌──────────────────────────────┐    │
+                 │  │  etcd (Key-Value Store)      │    │  ← cluster state database
+                 │  └──────────────────────────────┘    │
+                 │______________________________________│
+                                │
+                                │
+         ┌──────────────────────┼────────────────────────┐
+         │                      │                        │
+         ▼                      ▼                        ▼
+┌──────────────────┐   ┌──────────────────┐     ┌──────────────────┐
+│   WORKER NODE 1   │   │   WORKER NODE 2   │     │   WORKER NODE 3   │
+│──────────────────│   │──────────────────│     │──────────────────│
+│ kubelet          │   │ kubelet          │     │ kubelet          │ ← communicates with API server
+│ kube-proxy       │   │ kube-proxy       │     │ kube-proxy       │ ← networking & load balancing
+│------------------│   │------------------│     │------------------│
+│  ┌────────────┐  │   │  ┌────────────┐  │     │  ┌────────────┐  │
+│  │   Pod 1    │  │   │  │   Pod 3    │  │     │  │   Pod 5    │  │
+│  │ ┌────────┐ │  │   │  │ ┌────────┐ │  │     │  │ ┌────────┐ │  │
+│  │ │Container│ │  │   │  │ │Container│ │  │     │  │ │Container│ │  │
+│  │ └────────┘ │  │   │  │ └────────┘ │  │     │  │ └────────┘ │  │
+│  └────────────┘  │   │  └────────────┘  │     │  └────────────┘  │
+│  ┌────────────┐  │   │  ┌────────────┐  │     │  ┌────────────┐  │
+│  │   Pod 2    │  │   │  │   Pod 4    │  │     │  │   Pod 6    │  │
+│  └────────────┘  │   │  └────────────┘  │     │  └────────────┘  │
+└──────────────────┘   └──────────────────┘     └──────────────────┘
+```
+
+---
+
+## 🧠 **Short Explanation**
+
+### 🏗 **1. Control Plane (Brain)**
+
+Manages the whole cluster.
+
+| Component              | Role                                                           |
+| ---------------------- | -------------------------------------------------------------- |
+| **API Server**         | Entry point for all `kubectl` and internal communication.      |
+| **etcd**               | Stores all cluster data (pods, nodes, configs, secrets).       |
+| **Scheduler**          | Decides which node runs which Pod.                             |
+| **Controller Manager** | Watches resources, ensures desired state (auto-heal, scaling). |
+
+---
+
+### ⚙️ **2. Worker Nodes (Muscles)**
+
+Run the actual application workloads (Pods).
+
+| Component      | Role                                                     |
+| -------------- | -------------------------------------------------------- |
+| **kubelet**    | Talks to API server, runs containers on node.            |
+| **kube-proxy** | Handles networking and load balancing.                   |
+| **Pods**       | Smallest deployable unit — holds one or more containers. |
+
+---
+
+### 🌐 **3. Services**
+
+Services connect pods together and expose them internally or externally.
+
+* **ClusterIP** → internal-only communication
+* **NodePort** → access via `<NodeIP>:<Port>`
+* **LoadBalancer** → external load-balanced endpoint
+* **Ingress** → advanced HTTP routing (like reverse proxy)
+
+---
+
+### 💡 **In One Line:**
+
+> 🧠 **Control Plane** manages state
+> ⚙️ **Worker Nodes** run workloads
+> 🧱 **Pods** host containers
+> 🌐 **Services** connect everything
+
+---
