@@ -1,224 +1,175 @@
+Perfect — great catch ✅
+
+Here’s your **updated Kubernetes Learning Roadmap (Phase 1 → 5)** — now including **SonarQube integration** under production / CI-CD (Phase 5).
+It’s tuned for someone who already knows Docker inside-out and wants to move toward real-world Kubernetes DevOps skills.
 
 ---
 
-## 🧭 1. The Big Picture: Kubernetes = “Next Level Docker Swarm”
-
-| Concept             | Docker                     | Kubernetes                                              |
-| ------------------- | -------------------------- | ------------------------------------------------------- |
-| Run containers      | `docker run`               | **Pod** (smallest deployable unit)                      |
-| Group of containers | Service                    | **Deployment / ReplicaSet**                             |
-| Load balancing      | Swarm service routing mesh | **Service / Ingress**                                   |
-| Scale up/down       | `docker service scale`     | `kubectl scale` / **HPA**                               |
-| Networking          | Docker network driver      | **CNI (Calico, Flannel, etc.)**                         |
-| Storage             | Volumes                    | **PersistentVolume (PV) + PersistentVolumeClaim (PVC)** |
-| Secrets/config      | `.env` or configs          | **ConfigMap + Secret**                                  |
-| Cluster manager     | Docker Swarm manager       | **Kubernetes Master / Control Plane**                   |
-| Node joining        | `docker swarm join`        | `kubeadm join`                                          |
-
-So Kubernetes = **Docker Swarm on steroids** — with automated healing, load balancing, scaling, and deployment management.
+## 🧭 **Kubernetes Learning Roadmap — Phase 1 → 5 (with SonarQube)**
 
 ---
 
-## 🧱 2. Core Kubernetes Components You Need to Know
+### 🟢 **Phase 1 — Core Kubernetes Basics (Local Playground)**
 
-Let’s quickly map the architecture (logical layers):
+**Goal:** Understand the control plane, run your first app locally with Minikube.
 
-```
-+----------------------------------------+
-|              kubectl CLI               |
-+----------------------------------------+
-|          API Server (control)          |
-|  etcd | Scheduler | Controller Manager |
-+----------------------------------------+
-|          Worker Nodes (runtime)        |
-|  kubelet | kube-proxy | containerd     |
-+----------------------------------------+
-```
+**Learn**
 
-### 🧩 Key pieces:
+* What Kubernetes is (Control Plane vs Worker Node, Pods)
+* Install & set up:
 
-* **API Server:** Central brain — all commands go here (via kubectl).
-* **etcd:** Key-value store for cluster state.
-* **Controller Manager:** Watches and ensures actual = desired state.
-* **Scheduler:** Decides which node runs which pod.
-* **kubelet:** Agent on each node that runs containers.
-* **kube-proxy:** Handles networking and routing inside the cluster.
-* **containerd / cri-o:** The container runtime (replaces Docker runtime).
+  * `minikube`
+  * `kubectl`
+* Core resources: **Pod → ReplicaSet → Deployment → Service**
+* Commands: `get | describe | logs | exec | apply | delete`
+* Manual scaling:
+  `kubectl scale deployment app --replicas=3`
+* `minikube dashboard`
+
+**Practice**
+
+* Deploy NGINX
+* Expose it via NodePort
+* Visit with `minikube service nginx`
 
 ---
 
-## 🚀 3. Learning Path (for a Docker Expert)
+### 🟡 **Phase 2 — YAML Deep Dive & Deployment Management**
 
-I’ll give you a clean, **5-phase roadmap** to go from Swarm-level to production Kubernetes mastery.
+**Goal:** Define everything declaratively.
 
----
+**Learn**
 
-### 🔹 **Phase 1 — Kubernetes Core Basics (Minikube)**
-
-Goal: Run and scale your first app locally.
-
-**What to learn:**
-
-* Pods, Deployments, ReplicaSets
-* Services (ClusterIP, NodePort, LoadBalancer)
-* ConfigMaps & Secrets
-* Scaling (manual + HPA)
-* Logs & troubleshooting
-
-**Practice:**
-
-```bash
-minikube start --driver=docker
-kubectl create deployment nginx --image=nginx
-kubectl expose deployment nginx --type=NodePort --port=80
-minikube service nginx
-```
-
----
-
-### 🔹 **Phase 2 — Deep Dive: Architecture + YAML**
-
-Goal: Write full YAMLs, not just kubectl run commands.
-
-**Learn:**
-
-* Full deployment structure
-* Labels, selectors, annotations
-* Resource limits/requests
+* YAML structure for Kubernetes objects
+* Labels / selectors / annotations
+* Rolling updates & rollbacks
 * Namespaces
-* Rollouts and rollbacks
+* Resource requests & limits
+* Liveness vs Readiness probes
 
-**Practice:**
+**Practice**
 
-* Create a custom app deployment (`myapp.yaml`)
-* Rollout a new version and rollback using:
-
-  ```bash
-  kubectl rollout undo deployment/myapp
-  ```
+* Write your own `deployment.yaml`
+* Update image → observe rolling update
+* `kubectl rollout history` + `undo`
+* Separate workloads by namespace
 
 ---
 
-### 🔹 **Phase 3 — Networking + Storage**
+### 🟠 **Phase 3 — Networking & Storage**
 
-Goal: Understand how Pods talk and persist data.
+**Goal:** Learn pod-to-pod comms and persistent data.
 
-**Learn:**
+**Learn**
 
-* Cluster DNS and Service discovery
+* Cluster network model & DNS service discovery
+* Service types: ClusterIP / NodePort / LoadBalancer / Ingress
 * Ingress Controller (NGINX Ingress)
-* Persistent Volumes (PV), PVC
-* StorageClass and dynamic provisioning
-* NodePort vs LoadBalancer vs Ingress
+* Volumes: EmptyDir, HostPath, PV, PVC, StorageClass
 
-**Practice:**
+**Practice**
 
-* Deploy NGINX with persistent volume for `/usr/share/nginx/html`
-* Add Ingress route like `/api` and `/web` for multiple services
-
----
-
-### 🔹 **Phase 4 — Scaling + Observability**
-
-Goal: Monitor and autoscale like a pro.
-
-**Learn:**
-
-* Metrics Server
-* HorizontalPodAutoscaler (HPA)
-* VerticalPodAutoscaler (VPA)
-* Liveness & Readiness probes
-* Logs and `kubectl top`
-* Resource quotas per namespace
-
-**Practice:**
-
-* Deploy app with CPU limits and apply HPA.
-* Crash test pods and see auto-healing.
+* Deploy backend + frontend
+* Add Ingress routes `/api`, `/web`
+* Attach PersistentVolume to store data
 
 ---
 
-### 🔹 **Phase 5 — Advanced / Production**
+### 🔵 **Phase 4 — Scaling, Monitoring & Health**
 
-Goal: Move from Minikube → real cluster.
+**Goal:** Keep apps healthy and auto-scale them.
 
-**Learn:**
+**Learn**
 
-* kubeadm cluster setup
-* RBAC (users, roles, service accounts)
-* Helm (package manager)
-* Secrets management
-* CI/CD integration (GitHub Actions)
-* Monitoring (Prometheus + Grafana)
-* Deployments with Canary/Rolling updates
-* Multi-node + taints/tolerations
+* Metrics Server (`minikube addons enable metrics-server`)
+* `kubectl top pods/nodes`
+* HPA + VPA
+* Resource quotas
+* Deep dive into probes
+* Logs, events, troubleshooting (`describe`, `logs`)
 
----
+**Practice**
 
-## 💻 4. Hands-on Stack Setup (Recommended Order)
-
-| Tool               | Purpose                                                            |
-| ------------------ | ------------------------------------------------------------------ |
-| **Docker**         | Container runtime (you already know it)                            |
-| **kubectl**        | CLI for Kubernetes                                                 |
-| **minikube**       | Local single/multi-node cluster                                    |
-| **metrics-server** | Enables `kubectl top` and HPA                                      |
-| **helm**           | Deploy complex apps like Prometheus, Grafana, NGINX Ingress easily |
-| **k9s** (optional) | Terminal UI for Kubernetes (super nice)                            |
+* Set CPU/memory requests
+* Create HPA → simulate load → watch auto-scaling
+* Crash a pod → see auto-healing
 
 ---
 
-## ⚙️ 5. Practice Workflow Example
+### 🔴 **Phase 5 — Advanced / Production Concepts (+ SonarQube & CI/CD)**
 
-Here’s a typical end-to-end example you’ll soon master:
+**Goal:** Move beyond local → secure, observable production clusters.
 
-```bash
-# Create cluster
-minikube start --driver=docker
+**Learn**
 
-# Deploy backend
-kubectl apply -f backend.yaml
+1. **Cluster setup with kubeadm**
 
-# Deploy frontend
-kubectl apply -f frontend.yaml
+   * Control plane / worker join
+   * CNI plugins (Calico, Flannel)
 
-# Expose frontend to outside
-kubectl expose deployment frontend --type=NodePort --port=80
+2. **RBAC (roles, bindings, service accounts)**
+   Secure cluster access
 
-# Autoscale backend
-kubectl autoscale deployment backend --cpu-percent=60 --min=1 --max=5
+3. **Helm (package manager)**
+   Deploy Prometheus, Grafana, NGINX Ingress, SonarQube
 
-# View dashboards
-minikube dashboard
-```
+4. **Secrets management**
+   `kubectl create secret`, sealed-secrets
+
+5. **CI/CD pipelines with GitHub Actions**
+   Build → SonarQube Code Analysis → Push → Deploy to Cluster
+
+6. **SonarQube integration**
+
+   * Deploy SonarQube on Kubernetes via Helm chart
+   * Use GitHub Action to analyze code and send reports to SonarQube
+   * Visualize code quality metrics in the SonarQube UI
+
+7. **Monitoring & Logging**
+
+   * Prometheus + Grafana + Loki for metrics & logs
+
+8. **Deployment strategies**
+
+   * Rolling / Blue-Green / Canary
+
+9. **Node & storage management**
+
+   * Taints, tolerations, affinities
+   * AWS EBS / NFS / Local PV
+
+**Practice**
+
+* Build your own multi-node cluster (kubeadm or cloud)
+* Deploy SonarQube via Helm
+* Integrate SonarQube in GitHub Action pipeline
+* Add RBAC rules & monitor with Grafana
+
+---
+
+### 🧩 **Helpful Tools**
+
+| Tool                            | Use                              |
+| ------------------------------- | -------------------------------- |
+| **k9s**                         | Terminal UI                      |
+| **Lens**                        | GUI cluster manager              |
+| **Helm**                        | App packaging & deployment       |
+| **Prometheus / Grafana / Loki** | Observability stack              |
+| **ArgoCD / Flux**               | GitOps deployment                |
+| **SonarQube**                   | Code Quality & Security analysis |
 
 ---
 
-## 📘 6. Resources (Free & Practical)
+### ⚙️ **Summary**
 
-| Resource                                                            | Description                  |
-| ------------------------------------------------------------------- | ---------------------------- |
-| [Kubernetes.io Tutorials](https://kubernetes.io/docs/tutorials/)    | Official beginner → advanced |
-| [Play with Kubernetes](https://labs.play-with-k8s.com/)             | Browser-based cluster        |
-| [Kubernetes by Example (Red Hat)](https://kubernetesbyexample.com/) | Great real YAML examples     |
-| [k9s tool](https://k9scli.io/)                                      | Interactive terminal UI      |
-| [Helm Charts Hub](https://artifacthub.io/)                          | Prebuilt app templates       |
-
----
-
-## 🧠 7. Key mindset shift from Docker → Kubernetes
-
-| Docker                         | Kubernetes                                  |
-| ------------------------------ | ------------------------------------------- |
-| You manage *containers*        | You manage *desired state*                  |
-| You scale manually             | It scales automatically                     |
-| You deploy by running commands | You define everything in YAML (declarative) |
-| Focus on single host           | Focus on cluster                            |
-| Self-managed                   | Self-healing & declarative                  |
+| Phase | Focus                | Key Skills                     |
+| ----- | -------------------- | ------------------------------ |
+| 1     | Core Basics          | Pods, Deployments, Services    |
+| 2     | YAML & Rollouts      | Declarative configs, rollbacks |
+| 3     | Networking & Storage | Ingress, PV/PVC                |
+| 4     | Scaling & Monitoring | HPA, metrics, probes           |
+| 5     | Prod & CI/CD         | Helm, kubeadm, RBAC, SonarQube |
 
 ---
 
-✅ **You already have the hard part (Docker) mastered.**
-Now Kubernetes will feel like learning how to *automate Docker Swarm with more power and control*.
-
----
+Would you like me to now turn this into a **day-by-day (2-week)** hands-on plan — with YAML examples, kubectl commands, and SonarQube CI/CD tasks using Minikube on your Kali Linux?
