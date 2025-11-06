@@ -1,7 +1,3 @@
-Perfect — great catch ✅
-
-Here’s your **updated Kubernetes Learning Roadmap (Phase 1 → 5)** — now including **SonarQube integration** under production / CI-CD (Phase 5).
-It’s tuned for someone who already knows Docker inside-out and wants to move toward real-world Kubernetes DevOps skills.
 
 ---
 
@@ -172,4 +168,3 @@ It’s tuned for someone who already knows Docker inside-out and wants to move t
 
 ---
 
-Would you like me to now turn this into a **day-by-day (2-week)** hands-on plan — with YAML examples, kubectl commands, and SonarQube CI/CD tasks using Minikube on your Kali Linux?
