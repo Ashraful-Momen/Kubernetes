@@ -1,3 +1,4 @@
+```
                    ┌───────────────────────────┐
                    │       Master Node         │
                    │───────────────────────────│
@@ -20,7 +21,7 @@
 │  │ (apps)  │  │      │  │ (apps)  │  │       │  │ (apps)  │  │
 │  └─────────┘  │      │  └─────────┘  │       │  └─────────┘  │
 └───────────────┘      └───────────────┘       └───────────────┘
-
+```
 
 Great! Here’s the **enhanced Kubernetes working flow ASCII diagram** with **commands at each step**, showing exactly how `kubectl` interacts with the control plane and worker nodes:
 
