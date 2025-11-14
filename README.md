@@ -73,4 +73,82 @@ Think of Kubernetes like a **company factory**:
 
 ---
 
-Do you want me to also **add Kubernetes vs Docker Swarm ASCII comparison** (since you know Docker already)? That will make it easier to map your Swarm knowledge to Kubernetes.
+```
+       ┌─────────────────────────────┐
+       │          User               │
+       │  runs kubectl command       │
+       │  e.g., kubectl create pod   │
+       └─────────────┬──────────────┘
+                     │
+                     ▼
+       ┌─────────────────────────────┐
+       │       kubectl CLI           │
+       │  Sends request to API       │
+       │  Server (Master Node)       │
+       └─────────────┬──────────────┘
+                     │
+                     ▼
+       ┌─────────────────────────────┐
+       │      API Server             │
+       │  Validates & processes      │
+       │  request                    │
+       │  e.g., kubectl get pods     │
+       └─────────────┬──────────────┘
+                     │
+                     ▼
+       ┌─────────────────────────────┐
+       │       Scheduler             │
+       │ Chooses which Worker Node   │
+       │ will run the Pod            │
+       └─────────────┬──────────────┘
+                     │
+                     ▼
+       ┌─────────────────────────────┐
+       │ Controller Manager           │
+       │ Ensures desired state matches│
+       │ actual state (deployments)   │
+       └─────────────┬──────────────┘
+                     │
+                     ▼
+       ┌─────────────────────────────┐
+       │ etcd (Cluster DB)           │
+       │ Stores cluster state        │
+       └─────────────┬──────────────┘
+                     │
+                     ▼
+       ┌─────────────────────────────┐
+       │        Kubelet              │
+       │ Worker Node receives        │
+       │ instructions to run Pod     │
+       │ e.g., kubectl describe node │
+       └─────────────┬──────────────┘
+                     │
+                     ▼
+       ┌─────────────────────────────┐
+       │       Kube-proxy            │
+       │ Handles pod networking &    │
+       │ load balancing              │
+       └─────────────┬──────────────┘
+                     │
+                     ▼
+       ┌─────────────────────────────┐
+       │          Pod                 │
+       │  Runs container(s)           │
+       │  Your app is live here       │
+       │  e.g., kubectl get pods      │
+       └─────────────────────────────┘
+```
+
+---
+
+### 🔹 **Flow Summary with Commands**
+
+1. **kubectl CLI** → `kubectl create pod nginx`
+2. **API Server** → Validates request
+3. **Scheduler** → Chooses worker node
+4. **Controller Manager** → Ensures state matches deployment
+5. **etcd** → Stores cluster info
+6. **Kubelet** → Runs pod on worker
+7. **Kube-proxy** → Sets up networking & service
+8. **Pod** → Container runs your app
+9. **Check status** → `kubectl get pods -o wide`
