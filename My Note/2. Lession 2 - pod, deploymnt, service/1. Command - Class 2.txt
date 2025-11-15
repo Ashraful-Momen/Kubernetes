@@ -1,0 +1,287 @@
+#start minikube: 
+----------------
+> minikube start
+
+#yaml file for creating pods=> create_pods.yaml: 
+-----------------------------
+
+apiVersion: v1            <--- rule: api version for writing the yml file 
+kind: Pod                 <--- declare the resource: Pod, Deployment, Service, etc.
+metadata:                 <--- description about the resource
+  name: nginx-pod         <--- ***set name of the pod 
+  labels:                 <--- other resource (ex:deployment) when use thist pod  use the labels name : nginx 
+    app: nginx            <--- app name: nginx use this app name on other resource : deployemnt, service etc.
+spec:                     <--- specification of the pods
+  containers:
+  - name: nginx-container <--- container name 
+    image: nginx:latest   <--- conatiner image call from dockerHub/local
+    ports:                 
+    - containerPort: 80   <--- container will run on port 80, but host-maching run this container another port on 8080 (check in blow notes). 
+
+
+
+
+#run the file for creating pod: 
+----------------------------------
+
+┌─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes/2. Pod, Deployment, Service]
+└──╼ $kubectl apply -f create_pods.yml 
+pod/nginx-pod created
+
+┌─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes/2. Pod, Deployment, Service]
+└──╼ $kubectl get pods
+NAME        READY   STATUS              RESTARTS   AGE
+nginx-pod   0/1     ContainerCreating   0          17s
+
+
+#run the file for creating pod with namespace: 
+----------------------------------------------
+
+┌─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes/2. Pod, Deployment, Service]
+└──╼ $kubectl apply -f create_pods.yml -n ostad
+pod/nginx-pod created
+
+
+#show the pod inside the namespace: 
+-----------------------------------
+┌─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes/2. Pod, Deployment, Service]
+└──╼ $kubectl get pods -n ostad
+NAME        READY   STATUS    RESTARTS   AGE
+nginx-pod   1/1     Running   0          62s
+
+
+#now show the pod on the browser by port-forwarding : 
+-----------------------------------------------------
+┌─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes/2. Pod, Deployment, Service]
+└──╼ $kubectl port-forward pod/nginx-pod 8080:80
+Forwarding from 127.0.0.1:8080 -> 80
+Forwarding from [::1]:8080 -> 80
+
+
+#hit the url on the browser : 
+-----------------------------
+http://localhost:8080/
+
+
+#*** menually port forwarding is a hassle, so we use the deployemnt(use for creating replica and other config) and service (working as port-forwaring) 
+
+
+
+===================================== Deployment  =====================================
+
+#deployment.yml: 
+-----------------
+apiVersion: apps/v1                  # API version for Deployment resources. 
+                                     # 'apps/v1' is the stable API for Deployment, ReplicaSet, StatefulSet.
+kind: Deployment                     # Declares the resource type = Deployment. 
+                                     # Deployment manages ReplicaSets and ensures desired number of Pods.
+
+metadata:                            # Metadata = basic information about this Deployment.
+  name: nginx-deployment             # Name of the Deployment (must be unique in the namespace).
+  labels:                            # Labels = key-value pairs to identify the Deployment.
+    app: nginx                       # Label used to group and select this Deployment.
+
+spec:                                # Specification = what this Deployment should create or manage.
+  replicas: 3                        # Number of Pod replicas required. Deployment ensures 3 Pods always running.
+
+  selector:                          # Tells Deployment WHICH Pods it should manage. select from other resource file where app = nginx; as like inside => create_pod.yml file use lavel 'app:nginx' and selector use this label from creat_pod.yml
+    matchLabels:                     # Only Pods with these labels will be controlled.
+      app: nginx                     # Must match template.metadata.labels exactly.
+
+  template:                          # Pod template = blueprint for creating Pods.
+                                     # Deployment uses this to create the Pods under it.
+    metadata:
+      labels:
+        app: nginx                   # Labels added to Pods created by this Deployment.
+                                     # Must match 'selector.matchLabels'.
+
+    spec:                            # Pod specification (inside Deployment).
+      containers:                    # List of containers inside each Pod.
+        - name: nginx-container      # Name of the container inside the Pod.
+          image: nginx:latest        # Container image from Docker Hub/local. 
+                                     # 'latest' tag pulls the newest nginx image.
+
+          ports:
+            - containerPort: 80      # Container will listen on port 80.
+                                     # Used for exposing service traffic inside the Pod.
+
+
+
+#create the deployment resource inside the 'ostad' namespqce: 
+--------------------------------------------------------------
+
+┌─[✗]─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes/2. Pod, Deployment, Service]
+└──╼ $kubectl apply -f create_deployment.yml -n ostad
+deployment.apps/nginx-deployment created
+
+
+#show the deployemnt according to 'ostad' namespace: 
+-----------------------------------------------------
+
+┌─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes/2. Pod, Deployment, Service]
+└──╼ $kubectl get deployment -n ostad
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+nginx-deployment   3/3     3            3           64s
+
+#check those nginx pod that run 3 conatiner according to 'ostad' namespace: 
+---------------------------------------------------------------------------
+┌─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes/2. Pod, Deployment, Service]
+└──╼ $kubectl get pods -n ostad
+NAME                                READY   STATUS    RESTARTS   AGE
+nginx-deployment-6586c5b5fb-2cl8l   1/1     Running   0          3m25s
+nginx-deployment-6586c5b5fb-rtlj9   1/1     Running   0          3m25s
+nginx-deployment-6586c5b5fb-wtfkm   1/1     Running   0          3m25s
+nginx-pod                           1/1     Running   0          34m
+
+
+#check the replica-set => 'rs' from 'ostad' namespace: 
+-------------------------------------------------------
+
+┌─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes/2. Pod, Deployment, Service]
+└──╼ $kubectl get rs -n 'ostad'
+NAME                          DESIRED   CURRENT   READY   AGE
+nginx-deployment-6586c5b5fb   3         3         3       5m11s
+
+#now forwarding those 3 replica pods to 8080 port from host maching: 
+--------------------------------------------------------------------
+
+┌─[✗]─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes/2. Pod, Deployment, Service]
+└──╼ $kubectl port-forward deployment/nginx-deployment 8080:80 -n ostad
+Forwarding from 127.0.0.1:8080 -> 80
+Forwarding from [::1]:8080 -> 80
+
+
+**** port-forwarding by menually command is not ideal, so create a service.yml file to serve the deployemnt.yml replica pod . 
+
+
+
+
+====================================== Service : port-forward from deployment file =======================================
+
+apiVersion: v1                   # API version for Service resources
+kind: Service                    # declares this resource as a Service
+metadata:
+  name: nginx-service            # name of the Service
+  namespace: ostad               # target namespace where this Service will be created
+  labels:
+    app: nginx                   # label to identify this Service (used for selectors, management, etc.)
+
+spec:
+  type: LoadBalancer             # Service type: LoadBalancer exposes service externally
+                                 # On cloud: gets an external IP automatically
+                                 # On minikube: requires `minikube tunnel` to get EXTERNAL-IP
+  selector:                      # connects this Service to Pods with matching labels
+    app: nginx                   # must match the `labels` in Deployment/Pod template
+  ports:
+    - protocol: TCP              # protocol used by this Service (TCP/UDP)
+      port: 8080                 # Service port inside cluster (cluster-level access)
+      targetPort: 80             # Pod/container port to which the traffic is forwarded
+
+
+# Notes on Service types:
+# type: LoadBalancer   --> publicly expose service (requires cloud LB or minikube tunnel)
+# type: NodePort       --> accessible via <NodeIP>:<nodePort>, works locally
+# type: ClusterIP      --> default, internal only, accessible within cluster
+
+
+
+
+
+
+****** if we want to use the type:LoadBalancer then => : 
+-----------------------------------------------------
+
+we have to active the minikube tunnel so restart the minikube: 
+---------------------------------------------------------------
+
+┌─[✗]─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes]
+└──╼ $minikube start
+😄  minikube v1.37.0 on Debian 6.4
+✨  Using the docker driver based on existing profile
+❗  docker is currently using the btrfs storage driver, setting preload=false
+👍  Starting "minikube" primary control-plane node in "minikube" cluster
+🚜  Pulling base image v0.0.48 ...
+🏃  Updating the running docker "minikube" container ...
+🐳  Preparing Kubernetes v1.34.0 on Docker 28.4.0 ...
+    ▪ kubelet.localStorageCapacityIsolation=false
+🔎  Verifying Kubernetes components...
+    ▪ Using image gcr.io/k8s-minikube/storage-provisioner:v5
+🌟  Enabled addons: storage-provisioner, default-storageclass
+🏄  Done! kubectl is now configured to use "minikube" cluster and "default" namespace by default
+
+
+#check the current-context: 
+----------------------------
+
+┌─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes]
+└──╼ $kubectl config current-context
+minikube
+
+
+# not use the sudo before the command : 
+----------------------------------------
+
+┌─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes]
+└──╼ $sudo minikube tunnel --profile=minikube
+🤷  Profile "minikube" not found. Run "minikube profile list" to view all profiles.
+👉  To start a cluster, run: "minikube start"
+
+
+#actinve the tunnel: 
+----------------------
+
+┌─[✗]─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes]
+└──╼ $minikube tunnel
+Status:
+        machine: minikube
+        pid: 87428
+        route: 10.96.0.0/12 -> 192.168.49.2
+        minikube: Running
+        services: []
+    errors: 
+                minikube: no errors
+                router: no errors
+                loadbalancer emulator: no errors
+Status:
+        machine: minikube
+        pid: 87428
+        route: 10.96.0.0/12 -> 192.168.49.2
+        minikube: Running
+        services: [nginx-service]
+    errors: 
+                minikube: no errors
+                router: no errors
+                loadbalancer emulator: no errors
+
+
+
+then run those 2 command : 
+---------------------------
+# then apply corrected YAML
+> kubectl apply -f create_service.yml -n ostad
+
+# verify
+> kubectl get svc nginx-service -n ostad -o wide
+
+┌─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes/2. Pod, Deployment, Service]
+└──╼ $minikube service nginx-service -n ostad
+┌───────────┬───────────────┬─────────────┬───────────────────────────┐
+│ NAMESPACE │     NAME      │ TARGET PORT │            URL            │
+├───────────┼───────────────┼─────────────┼───────────────────────────┤
+│ ostad     │ nginx-service │ 8088        │ http://192.168.49.2:31974 │
+└───────────┴───────────────┴─────────────┴───────────────────────────┘
+🎉  Opening service ostad/nginx-service in default browser...
+
+# delete existing Service if you want a clean replace
+> kubectl delete svc nginx-service -n ostad
+
+#run those command if we use the type: NodePort directly 
+---------------------------------------------------------
+# then apply corrected YAML
+> kubectl apply -f create_service.yml -n ostad
+
+# verify
+> kubectl get svc nginx-service -n ostad -o wide
+
+# delete existing Service if you want a clean replace
+> kubectl delete svc nginx-service -n ostad
