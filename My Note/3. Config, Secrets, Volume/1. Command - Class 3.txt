@@ -1,0 +1,244 @@
+
+# configMap.yml (inShortName: cm) : here we store the env variables which not passwrd type . ex : debug:"true"
+
+# secret.yml : here we store the env variables which is the passwd type. ex : app_key:*** , etc. 
+
+# inside the deployment we can add the : volume, env: , or we can use from config.yml or secrets.yml as like docker-stack.yml service
+
+------------------------------------------------------------------------------------------
+#configMap.yml: 
+----------------
+apiVersion: v1                   # API version for ConfigMap
+kind: ConfigMap                  # Resource type = ConfigMap
+metadata:
+  name: nginx-config             # Name of the ConfigMap
+  # namespace: my-namespace      # Optional: specify namespace, default is 'default'
+
+data:
+  DEBUG: "true"                  # Key-value pairs to store configuration
+
+
+
+
+#goto dir : 
+------------
+
+┌─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes/3. Config, Secrets, Volume]
+└──╼ $ls
+'1. Command - Class 3.txt'   create_deployment.yml   create_pods.yml   create_service.yml
+
+
+
+
+┌─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes/3. Config, Secrets, Volume]
+└──╼ $kubectl apply -f configMap.yml -n ostad
+configmap/nginx-config created
+
+#show the configMap according to the namespace: 
+-------------------------------------------------
+┌─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes/3. Config, Secrets, Volume]
+└──╼ $kubectl get cm -n ostad
+NAME               DATA   AGE
+kube-root-ca.crt   1      5h9m
+nginx-config       1      21s
+
+
+#delete the configMap accoding to the namespace: 
+--------------------------------------------------
+┌─[✗]─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes/3. Config, Secrets, Volume]
+└──╼ $kubectl delete cm app-config -n ostad
+configmap "app-config" deleted from ostad namespace
+
+============================== deployment.yml (use : volume Mount) ========================
+deployment.yml => 
+------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx-container
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+        #use the configMap as volume:___________ main part for volume _________
+        volumeMounts:                    # Mount the volume in the container
+        - name: config-volume            # Volume name
+          mountPath: /etc/nginx/conf.d   # Mount path inside the container
+          
+      volumes:                           # Define the volume (configMap or other file ) that send to container                
+      - name: config-volume              # Volume name that matches => volumeMounts: 
+        configMap:                       # Specify the file (configMap or other) which send inside the container        
+          name: nginx-config             # Name of the ConfigMap to use
+
+  
+------------------------------- without configMap file we can use env or volume directly in deployment file --------------------
+
+deployment.yml: 
+----------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx-container
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+
+        # ---------------------- ENV VARIABLES ----------------------
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: APP_VERSION
+          value: "v1"
+        # -----------------------------------------------------------
+
+        # use the configMap as volume
+        volumeMounts:   # this part for inside container
+        - name: config-volume   #declare the volume name
+          mountPath: /etc/nginx/conf.d  #define the path for the container
+
+      volumes:                       #this part for which file send inside the container 
+      - name: config-volume          #volume_name form the 'volumeMounts'
+        configMap:                   #file Name that send to inside the container 
+          name: nginx-config         # configMap file metaData name . 
+
+
+------------------------------evnform in the deployemnt ()----------------------------
+
+#if we use envform then no need to use 'volume' in the deployemnt . envform is we use directly we can use the configMap file .  
+
+deployemnt.yml: 
+----------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx-container
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+
+        # ---------------------- ENV FROM ----------------------
+        envFrom:
+        - configMapRef:          # Load all variables from ConfigMap
+            name: nginx-config-env
+        - secretRef:             # (Optional) Load from Secret
+            name: nginx-secret-env
+        # -----------------------------------------------------
+
+   
+================================== Secret: that use for passwd type data as like .env===============================
+
+
+secret.yml: 
+------------
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nginx-secret
+type: Opaque   # default type for generic secrets , and we can do everything with the default type . There are many other types like kubernetes.io/basic-auth etc. check the docs for more. 
+data:
+  username: dXNlcm5hbWU=  #store data in base64 encoded 'username'
+  password: cGFzc3dvcmQ=  #store data in base64 encoded 'password' 
+
+
+
+deployemnt.yml : 
+-----------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx-container
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+
+        # ---------------------- ENV FROM SECRET ----------------------
+        env:
+        - name: APP_USERNAME       #declare any name 
+          valueFrom:
+            secretKeyRef:           #value comes from the secrets file 
+              name: nginx-secret    #secret file,  metadata name 
+              key: username         #secret file, data : -> key for the username (username:dXNlcm5hbWU) 
+
+        - name: APP_PASSWORD      #declare any name 
+          valueFrom:
+            secretKeyRef:         #value comes from the secrets file 
+              name: nginx-secret  #secret file,  metadata name 
+              key: password       ##secret file, data : -> key for the username (username:dXNlcm5hbWU)
+        # --------------------------------------------------------------
+
+   
+
+
+
+
+
+#create secret : 
+----------------------
+
+┌─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes/3. Config, Secrets, Volume]
+└──╼ $kubectl apply -f secrets.yml 
+secret/nginx-secret created
+
+
+#show the secret: 
+------------------
+┌─[shuvo@parrot]─[~/Ostad DevOps/Kubernetes/3. Config, Secrets, Volume]
+└──╼ $kubectl get secrets
+NAME           TYPE     DATA   AGE
+nginx-secret   Opaque   2      13s
+

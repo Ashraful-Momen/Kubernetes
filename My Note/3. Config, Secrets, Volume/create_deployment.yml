@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx-container
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+        #use the configMap as volume:___________ main part for volume _________
+        volumeMounts:                    # Mount the volume in the container
+        - name: config-volume            # Volume name
+          mountPath: /etc/nginx/conf.d   # Mount path inside the container
+          
+      volumes:                           # Define the volume (configMap or other file ) that send to container                
+      - name: config-volume              # Volume name that matches => volumeMounts: 
+        configMap:                       # Specify the file (configMap or other) which send inside the container        
+          name: nginx-config             # Name of the ConfigMap to use

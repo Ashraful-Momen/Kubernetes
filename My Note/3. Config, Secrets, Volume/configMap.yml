@@ -1,0 +1,8 @@
+apiVersion: v1                # API version for ConfigMap
+kind: ConfigMap                # Resource type = ConfigMap
+metadata:
+  name: nginx-config             # Name of the ConfigMap
+  # namespace: my-namespace    # Optional: specify namespace, default is 'default'
+
+data:
+  DEBUG: "true"                # Key-value pairs to store configuration
