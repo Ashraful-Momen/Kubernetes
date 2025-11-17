@@ -1,0 +1,42 @@
+apiVersion: app/v1
+kind: Deployment
+metadata:
+  name: {{ include "django-app.name" . }}-deployment 
+  # this include call _helpers.tpl file and put the value of my-application.name in the dot "." ->   {{include "my-application.name" . }}-deployment
+  labels:
+    app: {{ include "django-app.name" . }}
+spec:
+  # {{ .Values.replicaCount }}  # this .Values.replicaCount call the values.yaml file and get the value of replicaCount
+  replicas: {{ .Values.replicaCount }} #this value comes from values.yaml file
+  selector:
+    matchLabels:
+      app: {{ include "django-app.name" . }} # this include call _helpers.tpl file and put the value of my-application.name in the dot "."
+  template:
+    metadata:
+      labels:
+        app: {{ include "django-app.name" . }} # this include call _helpers.tpl file and put the value of my-application.name in the dot "."
+    spec:
+      containers:
+        - name: django # custom name of the container or can use {{ include "django-app.name" . }} as we want 
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}" # this .Values.image.repository and .Values.image.tag call the values.yaml file and get the value of image.repository and image.tag
+          imagePullPolicy: {{ .Values.image.pullPolicy }} # this .Values.image.pullPolicy call the values.yaml file and get the value of image.pullPolicy
+          ports:
+            - containerPort: 8000
+          env:
+            - name: Django_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "django-app.name" . }}-secret
+                  key: Django_SECRET_KEY
+          resources:
+            limits: {{- toYaml .Values.resources.limits | nindent 14 }} # this .Values.resources.limits call the values.yaml file and get the value of resources.limits and indent it with 14 space
+
+#explain : nindent 14 => 
+# ---------------------- 
+# spec:                     (2 spaces)
+#   containers:             (4)
+#     - name:               (6)
+#       resources:          (8)
+#         limits:           (10)
+#           cpu/memory      (12)
+#             | nindent 14  (14 spaces) 
