@@ -1,0 +1,436 @@
+
+How to install helm: 
+---------------------
+# Install Helm on Parrot OS (Debian-based)
+
+1. Add Helm GPG key:
+curl https://baltocdn.com/helm/signing.asc | sudo apt-key add -
+
+2. Add Helm repository:
+echo "deb https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+
+3. Update packages:
+sudo apt update
+
+4. Install Helm:
+sudo apt install helm -y
+
+5. Verify:
+helm version
+
+
+================================================== Main Part form here ============================================
+
+#Helm : build pkg for the helm . helm is the package manager for k8s. 
+-------
+1. for build helm pkg need a file => chart.yaml and values.yaml <= this file use for the storing values
+
+    chart.yaml: 
+    -----------
+    apiVersion: v2
+
+    # Helm chart metadata (name, description, ***type: application, version, appVersion, maintainers) define by user (custom data set by usr) in chart.yaml
+
+    name: my-application # Name of the Helm chart
+    description: A Helm chart for deploying My Application
+    type: application #default type is 'application'
+    version: 1.0.0 # Version of the Helm chart
+    appVersion: "1.0.0" # Version of the application being deployed
+    maintainers:
+    - name: Jane Doe
+        email: 6Dm0k@example.com
+
+
+
+
+
+
+2. create a folder => 'template'. inside the template folder create deployment, service, configMap, Secrects, ingress etc  (in the deployment file use the docker image - this img which is the project)
+3. inside the template folder create => _helpers.tpl
+
+
+
+
+_helpers.tpl: (*** Main Part)
+-------------
+    {{- define "django-app.name -}}  #start : declare the variable_name as we want 
+    {{- .Chart.Name -}}              #value comes from chart.yaml file => (.name )
+    {{- end -}}                      #end : 
+
+
+    # Already define "django-app.name", now we can use this define value with the help of "include" function {{ include "django-app.name" . }} <- this last dot (.) recieves the current context
+
+    {{- define "django-app.fullname" -}} #start : declare the variable_name as we want
+    {{- printf "%s-%s" .Release.Name (include "django-app.name" .) | trunc 63 | trimSuffix "-" -}} #value comes from file of release.name and chart.name
+    {{- end -}}
+
+    #%s -> this is used for string formatting(print value). here first %s is for .Release.Name and second %s is for (include "django-app.name" .)
+
+
+
+### we downlaod any helm pkg and use this file -> values.yaml (work like .env file)
+**** values.yaml (): it's like .env file [deployment , service , ingress, egress => call value from value.yaml OR _help.tpl ---> _help.tpl --> call value by {{include variable_name}}  -> chart.yaml]
+
+example: 
+-----------
+
+any file(deployment, service , ingress ) if use {{include}} call the varibale_name from _help file {{define value}}.
+
+
+
+-------------------------------------------- value pass flow ----------------------------
+
+deployment --> call value by '{{include varibale_name}} ----> _help.tpl call--->{{define variable_name}}---> define_varible call ---> chart.yml 
+
+
++----------------+      +----------------+       +-------------------+       +------------------------+
+|   Chart.yaml   |      |   values.yaml  |       |  templates/_helpers|       |    templates/* (YAML)  |
+| ( .Chart.* )   |      |  ( .Values.* ) |  ---> |  (define helpers)  |  ---> | deployment.yaml        |
++-------+--------+      +-------+--------+       +---------+---------+        | service.yaml           |
+        |                         |                          |                | ingress.yaml           |
+        |            Helm loads both into render context '.' |                | configmap.yaml         |
+        |                         v                          v                | secret.yaml            |
+        +----------------->  Rendering context '.'  <-------------------------+
+                              - .Chart
+                              - .Values
+                              - .Release
+                              - .Capabilities
+                              - etc.
+
+
+
+
+3. ***** values.yaml : 
+----------------------
+
+# values.yaml : values for the helm chart. we define the values which we want to use in the deployment.yaml file for container related things like image, replica count etc.
+
+replicaCount: 3
+image:
+  repository: my-django-app
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+service:
+  type: ClusterIP
+  port: 80
+
+
+4. deployemnt.yaml: 
+--------------------
+
+apiVersion: app/v1
+kind: Deployment
+metadata:
+  name: {{ include "django-app.name" . }}-deployment 
+  # this 'include' call _helpers.tpl file and put the value of my-application.name in the dot "." ->   {{include "my-application.name" . }}-deployment
+  labels:
+    app: {{ include "django-app.name" . }}
+spec:
+  # {{ .Values.replicaCount }}  # this .Values.replicaCount call the values.yaml file and get the value of replicaCount
+  replicas: {{ .Values.replicaCount }} #this value comes from values.yaml file
+  selector:
+    matchLabels:
+      app: {{ include "django-app.name" . }} # this include call _helpers.tpl file and put the value of my-application.name in the dot "."
+  template:
+    metadata:
+      labels:
+        app: {{ include "django-app.name" . }} # this include call _helpers.tpl file and put the value of my-application.name in the dot "."
+    spec:
+      containers:
+        - name: django # custom name of the container or can use {{ include "django-app.name" . }} as we want 
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}" # this .Values.image.repository and .Values.image.tag call the values.yaml file and get the value of image.repository and image.tag
+          imagePullPolicy: {{ .Values.image.pullPolicy }} # this .Values.image.pullPolicy call the values.yaml file and get the value of image.pullPolicy
+          ports:
+            - containerPort: 8000
+          env:
+            - name: Django_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "django-app.name" . }}-secret
+                  key: Django_SECRET_KEY
+          resources:
+            limits: {{- toYaml .Values.resources.limits | nindent 14 }} # this .Values.resources.limits call the values.yaml file and get the value of resources.limits and indent it with 14 space
+
+#explain : nindent 14 => 
+# ---------------------- 
+# spec:                     (2 spaces)
+#   containers:             (4)
+#     - name:               (6)
+#       resources:          (8)
+#         limits:           (10)
+#           cpu/memory      (12)
+#             | nindent 14  (14 spaces) 
+
+
+
+5. service.yaml: 
+----------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "django-app.name" . }}-service
+  labels:
+    app: {{ include "django-app.name" . }}
+spec:
+  type: {{ .Values.service.type }} # this .Values.service.type call the values.yaml file and get the value of service.type
+  selector:
+    app: {{ include "django-app.name" . }}
+  ports:
+    - port: {{ .Values.service.port }} # this .Values.service.port call the values.yaml file and get the value of service.port
+      targetPort: 8000
+
+
+6. configMap.yaml: 
+------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "django-app.name" . }}-configmap
+  labels:
+    app: {{ include "django-app.name" . }}
+data:
+  Allowed_Hosts: "localhost,django.local"
+  Debug: "False"
+
+
+7. Secrects.yaml: 
+-------------------
+
+apiVersion: v1 
+kind: Secret
+metadata:
+  name: {{ include "django-app.name" . }}-secret
+  labels:
+    app: {{ include "django-app.name" . }}
+type: Opaque
+data:
+  Django_SECRET_KEY: {{ .Values.secrets.Django_SECRET_KEY | b64enc | quote }}
+# this .Values.secrets.Django_SECRET_KEY call the values.yaml file and get the value
+
+8.ingress.yaml: 
+----------------- 
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "django-app.name" . }}-ingress
+spec:
+  rules:
+    - host: {{- if .Values.ingress.host }}{{ .Values.ingress.host }}{{ else }}"{{ include "django-app.name" . }}.example.com"{{ end }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "django-app.name" . }}-service
+                port:
+                  number: {{ .Values.service.port }}
+{{- end }}
+
+
+
+
+
+8.1. ingress.yaml (read for understanding): 
+----------------
+{{- if .Values.ingress.enabled }}                 # If ingress is enabled in values.yaml → render everything below
+
+apiVersion: networking.k8s.io/v1                  # Kubernetes API version for Ingress
+kind: Ingress                                      # Kubernetes resource kind = Ingress
+
+metadata:
+  name: {{ include "django-app.name" . }}-ingress # Ingress name → generated using helper function from _helpers.tpl
+
+spec:
+  rules:                                          # Starts the routing rules section
+    - host:                                       # Defines host/domain name for incoming requests
+        {{- if .Values.ingress.host }}            # If a custom hostname is set in values.yaml
+            {{ .Values.ingress.host }}            # Use that hostname value
+        {{ else }}                                # Otherwise (no custom host)
+            "{{ include "django-app.name" . }}.example.com"   # Use default host based on chart name
+        {{ end }}
+      http:                                       # Defines HTTP routing
+        paths:                                    # List of paths for this host
+          - path: /                               # Match all requests starting with "/"
+            pathType: Prefix                      # Prefix means /api also matches /, /dashboard etc.
+            backend:                              # Backend service that receives the routed traffic
+              service:                            # Use Kubernetes Service as backend
+                name: {{ include "django-app.name" . }}-service # Service name → same base name as chart
+                port:
+                  number: {{ .Values.service.port }} # Port number from values.yaml → service configuration
+
+{{- end }}                                         # End of the ingress.enabled condition — stops rendering if disabled
+
+=============================== final ingress.yaml file ===============================
+Example final YAML after rendering:
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-application-ingress
+  labels:
+    app: my-application
+spec:
+  rules:
+    - host: "my-application.example.com"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-application-service
+                port:
+                  number: 80
+=============================== final ingress.yaml file ===============================
+
+8.2. ingress.yaml (read for understanding): 
+-------------------------------------------
+{{- if .Values.ingress.enabled }}           
+# IF STATEMENT:
+# This checks: values.yaml → ingress.enabled
+# If true → render this entire Ingress YAML
+# If false → Helm outputs NOTHING for this file
+
+apiVersion: networking.k8s.io/v1             
+# Kubernetes API version for Ingress resources
+
+kind: Ingress                                 
+# We are creating an Ingress object
+
+metadata:
+  name: {{ include "django-app.name" . }}-ingress      
+  # Creates Ingress name by calling helper:
+  # include "django-app.name" → gets Chart.Name (from chart.yaml)
+  # Example final result: myapp-ingress
+
+spec:
+  rules:                                      
+  # Specifies the routing rules for the Ingress controller
+
+    - host: {{- if .Values.ingress.host }}{{ .Values.ingress.host }}{{ else }}"{{ include "django-app.name" . }}.example.com"{{ end }}
+      # This line decides the hostname using IF/ELSE:
+      # If values.yaml has ingress.host set → USE THAT value
+      # Else → fallback to "<chartName>.example.com"
+      #
+      # Example:
+      # values.ingress.host = "api.my-domain.com"  → uses that
+      # values.ingress.host = "" → uses "myapp.example.com"
+
+      http:                                     
+      # Indicates this rule applies to HTTP routing
+
+        paths:                                  
+        # List of path rules inside this host
+
+          - path: /                              
+            # Incoming requests matching "/" prefix come here
+            # Covers "/", "/login", "/anything"
+
+            pathType: Prefix                     
+            # Prefix means: match ANY subpath starting with "/"
+
+            backend:                             
+            # Define where the request should be routed
+
+              service:                           
+              # Traffic goes to a Kubernetes Service
+
+                name: {{ include "django-app.name" . }}-service   
+                # Service name (must exist in cluster)
+                # Example: myapp-service
+
+                port:
+                  number: {{ .Values.service.port }}              
+                  # The service port is taken from values.yaml
+                  # Example:
+                  # service.port: 80 → final YAML: number: 80
+
+{{- end }}
+# END IF:
+# Ends the "if .Values.ingress.enabled" condition started at the top.
+# If ingress.enabled = false → everything above is NOT rendered.
+
+
+
+
+
+============================= important note for command ==============================
+
+You're right — I’ll fix it and clearly include **helm upgrade** with comments in the correct section.
+
+Here is the corrected list:
+
+---
+
+### 🚀 Helm Commands (with inline #comments)
+
+helm install myapp ./mychart                      # install chart, create release named "myapp"
+helm install myapp ./mychart -f values.yaml       # install using values.yaml
+helm install myapp ./mychart --set replicas=5     # override specific value in CLI
+
+helm upgrade myapp ./mychart                      # upgrade existing release (IMPORTANT)
+helm upgrade myapp ./mychart -f values.yaml       # upgrade using updated values.yaml
+helm upgrade myapp ./mychart --set replicas=10    # dynamically change value on upgrade
+
+helm uninstall myapp                              # remove helm release
+
+helm list                                         # list all helm installs in current namespace
+
+helm template ./mychart                           # render chart YAML locally
+helm template myapp ./mychart                     # render including release name
+
+helm show values ./mychart                        # display chart's default values
+helm lint ./mychart                               # validate helm chart for issues
+
+helm repo add bitnami https://charts.bitnami.com/bitnami    # add external repo
+helm repo update                                             # sync/update repos
+
+helm search repo nginx                            # search chart by name
+
+
+✔ Now `helm upgrade` is included and properly explained 🚀
+
+---
+
+### 🕸 Ingress Commands (with comments)
+
+kubectl get ingress                                      # list ingress
+kubectl describe ingress myapp-ingress                   # debug ingress object
+kubectl delete ingress myapp-ingress                     # delete ingress
+
+kubectl get pods -n ingress-nginx                        # verify ingress controller running
+kubectl logs -n ingress-nginx deploy/ingress-nginx-controller   # check logs
+
+nslookup myapp.example.com                               # verify DNS entry
+
+
+---
+
+### 🧪 Debug & Testing Commands
+
+helm template ./mychart | grep host -n                  # inspect rendered host values
+kubectl get svc                                         # list services
+kubectl describe svc myapp-service                      # debug service ports
+kubectl port-forward svc/myapp-service 8000:80          # bypass ingress and test locally
+
+
+---
+
+If you want — next I can teach you:
+
+✔ helm rollback (undo deployment)
+✔ helm diff (compare changes before upgrade)
+✔ helm history for releases
+
+Just say — **yes** or **continue** 😊
