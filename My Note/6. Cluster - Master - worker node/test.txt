@@ -1,0 +1,4 @@
+1M requests per second -----> Nginx - upstream dynamic and send cluster --------> k3s cluster ----------> kubernetests (minifast files : deployment, service, ingress, laravel_hpa, configMap, screts etc)
+
+
+- if rps > 1M - NGINX also auto scale . 
