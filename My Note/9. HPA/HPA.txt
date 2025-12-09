@@ -1,0 +1,85 @@
+#1. create the deployment file for nginx server
+#2. create the HPA file
+#3. test with k6 js 
+
+
+1.deployment.yml: 
+------------------
+
+appVersion: app/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:                   # Pod specification
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80 
+        resources:          # Resource requests and limits for the container 
+          requests:         # Minimum resources required [minimum resources allowed to the per container]
+            cpu: "100m"     # 100 millicores = 0.1 core [1core = 1000millicores]
+            memory: "128Mi" # 128 Megabytes of ram [1Gi = 1024Mi]
+          limits:           # Maximum resources allowed for per container
+            cpu: "500m"     # 500 millicores = 0.5 core
+            memory: "512Mi" # 512 Megabytes of ram
+
+
+
+
+2. nginx_hpa.yml:
+-----------------
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nginx-hpa
+spec:
+  scaleTargetRef: # Reference to the target Deployment file
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nginx-deployment # Name of the Deployment to be autoscaled
+  minReplicas: 2 # Minimum number of Pod replicas
+  maxReplicas: 10 # Maximum number of Pod replicas
+  metrics:
+  - type: Resource # Type of metric to monitor
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50  # suppose pod max cpu limit is 250m, if use 50% of it i.e 125m, then HPA will scale up the pods
+      name: ram
+      target:
+        type: Utilization
+        averageUtilization: 50  # suppose pod max ram limit is 512Mi, if use 50% of it i.e 256Mi, then HPA will scale up the
+
+
+
+3. test.js: 
+-------------
+import http from 'http';
+import {sleep} from 'k6';
+
+export const options = {
+  vus : 2000, //Number of Virtual Users
+  duration: '30s', // Test duration
+  thresholds: {
+    http_req_duration: ['p(95)<500'], // 95% of requests should be below 500ms
+  },
+};
+
+export default function () {
+  http.get('http://localhost:8080/');
+  sleep(1);
+}   
+
+
+// run command: k6 run test.js

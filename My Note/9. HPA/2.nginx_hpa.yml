@@ -1,0 +1,22 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nginx-hpa
+spec:
+  scaleTargetRef: # Reference to the target Deployment file
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nginx-deployment # Name of the Deployment to be autoscaled
+  minReplicas: 2 # Minimum number of Pod replicas
+  maxReplicas: 10 # Maximum number of Pod replicas
+  metrics:
+  - type: Resource # Type of metric to monitor
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50  # suppose pod max cpu limit is 250m, if use 50% of it i.e 125m, then HPA will scale up the pods
+      name: ram
+      target:
+        type: Utilization
+        averageUtilization: 50  # suppose pod max ram limit is 512Mi, if use 50% of it i.e 256Mi, then HPA will scale up the

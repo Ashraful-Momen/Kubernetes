@@ -1,0 +1,122 @@
+
+use the script 
+./create-ec2-instances-no-data.sh
+to create required ec2-instance in AWS env
+
+log in to the master node k8s-control-plane
+
+	ssh -i your_pemfile.pem ubuntu@master_node_real_ip
+	
+Execute below commands 
+
+	1. System Prerequisite Commands:
+
+		swapoff -a
+		sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+		echo 'overlay' | tee /etc/modules-load.d/containerd.conf
+		echo 'br_netfilter' | tee -a /etc/modules-load.d/containerd.conf
+		modprobe overlay
+		modprobe br_netfilter
+		echo 'net.bridge.bridge-nf-call-iptables = 1' | tee /etc/sysctl.d/99-kubernetes-cri.conf
+		echo 'net.ipv4.ip_forward = 1' | tee -a /etc/sysctl.d/99-kubernetes-cri.conf
+		echo 'net.bridge.bridge-nf-call-ip6tables = 1' | tee -a /etc/sysctl.d/99-kubernetes-cri.conf
+		sysctl --system
+
+	# change this with your ec2-instance ips
+		echo "
+		172.31.0.30 k8s-control-plane
+		172.31.0.31 k8s-worker-1
+		172.31.0.32 k8s-worker-2" | sudo tee -a /etc/hosts
+
+
+	2. Package Management Commands:
+
+		apt-get update
+		apt-get install -y containerd
+		mkdir -p /etc/containerd
+		containerd config default | tee /etc/containerd/config.toml
+
+
+	3. Containerd Configuration:
+
+		sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+		systemctl restart containerd
+		systemctl enable containerd
+		systemctl status containerd --no-pager -l
+
+
+
+	4. Kubernetes Repository Setup:
+
+		apt-get install -y apt-transport-https ca-certificates curl gpg
+		mkdir -p /etc/apt/keyrings
+		curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+		echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list
+		apt-get update
+
+
+	5. Kubernetes Installation:
+
+		apt-get install -y kubelet kubeadm kubectl
+		apt-mark hold kubelet kubeadm kubectl
+
+	6. Verification Commands:
+
+		containerd --version
+		kubelet --version
+		kubectl version --client
+		kubeadm version
+		which kubectl kubelet kubeadm
+		ls -la /usr/bin/kubectl /usr/bin/kubelet /usr/bin/kubeadm
+
+
+	7. Initialize the cluster using the master's IP:
+
+		sudo kubeadm init --apiserver-advertise-address=xxx.xxx.xxx.xx --pod-network-cidr=192.168.0.0/16 --ignore-preflight-errors=NumCPU,Mem
+
+	************************* Save this for Node joining *********************
+	kubeadm join 172.31.0.30:6443 --token 1b84a2.08oyi0ae63vgzxwb \
+			--discovery-token-ca-cert-hash sha256:aa7a18d96856fc3d7ab8c6a902ccf734cf2bc38008b7a5af0887c234f0eced9a
+			
+			
+			
+	8. Configure kubectl for your user:
+
+		mkdir -p $HOME/.kube && sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config && sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+	9. Install the Calico Network Add-on:
+
+		kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/tigera-operator.yaml
+		kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/custom-resources.yaml
+
+	10. Watch the master node become ready:
+
+		watch kubectl get nodes
+
+For Worker node 1 and 2 
+execute the script from slave node inside
+./all-node-with-user-data.sh
+
+join the nodes to Master node 
+	kubeadm join 172.31.0.30:6443 --token 1b84a2.08oyi0ae63vgzxwb \
+				--discovery-token-ca-cert-hash sha256:aa7a18d96856fc3d7ab8c6a902ccf734cf2bc38008b7a5af0887c234f0eced9a
+				
+root@ip-172-31-0-30:~# kubectl get nodes
+NAME             STATUS   ROLES           AGE   VERSION
+ip-172-31-0-30   Ready    control-plane   76m   v1.30.14
+ip-172-31-0-31   Ready    <none>          63m   v1.30.14
+ip-172-31-0-32   Ready    <none>          60m   v1.30.14
+root@ip-172-31-0-30:~#
+
+
+Deploy a test application:
+	kubectl create deployment nginx --image=sarowaralam/sarowar-nginx --replicas=3
+	kubectl expose deployment nginx --port=80 --type=NodePort
+	
+Browse 
+	http://<worker-node-real-ip>:<nodeport>
+
+
+Assignment: 
+
+	Automate this full process. 
